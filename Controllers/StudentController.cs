@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using CollegeApp.Dtos;
 using System.Numerics;
 using System.Xml.Linq;
+using Microsoft.AspNetCore.JsonPatch;
+using System.Reflection;
 
 namespace CollegeApp.Controllers
 {
@@ -38,7 +40,7 @@ namespace CollegeApp.Controllers
                 Email = m.Email,
                 Phone = m.Phone,
                 Sex = m.Sex,
-            });
+            }).ToList();
             // OK - 200 - Success
             return Ok(students);
         }
@@ -164,6 +166,41 @@ namespace CollegeApp.Controllers
             existingstudent.Email = model.Email;
             existingstudent.Phone = model.Phone;
             existingstudent.Sex = model.Sex;
+            return NoContent();
+        }
+
+        [HttpPatch]
+        [Route("{id:int}/[Controller]")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public ActionResult updatestudentPartial(int id, [FromBody] JsonPatchDocument<StudentDTO> patchDocument)
+        {
+            if (patchDocument == null || id <= 0)
+                return BadRequest();
+
+            var existingstudent = StudentRepository.Student.Where(i => i.Id == id).FirstOrDefault();
+            if (existingstudent == null)
+                return NotFound();
+
+            var studentDTO = new StudentDTO
+            {
+                Id = existingstudent.Id,
+                Name = existingstudent.Name,
+                Email = existingstudent.Email,
+                Phone = existingstudent.Phone,
+                Sex = existingstudent.Sex,
+            };
+
+            patchDocument.ApplyTo(studentDTO);
+
+            existingstudent.Name = studentDTO.Name;
+            existingstudent.Email = studentDTO.Email;
+            existingstudent.Phone = studentDTO.Phone;
+            existingstudent.Sex = studentDTO.Sex;
+
+            // 204 - No Content
             return NoContent();
         }
 

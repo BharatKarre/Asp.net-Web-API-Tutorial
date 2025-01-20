@@ -18,7 +18,7 @@ namespace CollegeApp.Dtos
         public string Email { get; set; }
         [Required]
         public string Phone { get; set; }
-        public string Sex { get; set; }
+        public string? Sex { get; set; }
         ////[Range(10, 20)] - Attribute will Validate the Field with set of range as per mentioned.
         //[Range(10,20)]
         //public int Age { get; set; }
