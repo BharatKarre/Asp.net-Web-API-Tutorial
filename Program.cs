@@ -1,3 +1,4 @@
+using CollegeApp.Configurations;
 using CollegeApp.Data;
 using CollegeApp.Loggings;
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +42,8 @@ namespace CollegeApp
             {
                 Options.UseSqlServer(builder.Configuration.GetConnectionString("Lala"));
             });
+
+            builder.Services.AddAutoMapper(typeof(AutoMapperConfig));
 
             var app = builder.Build();
 

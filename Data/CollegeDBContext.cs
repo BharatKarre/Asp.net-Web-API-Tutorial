@@ -9,7 +9,7 @@ namespace CollegeApp.Data
         {
 
         }
-        DbSet<Students> students { get; set; }
+        public DbSet<Students> students { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

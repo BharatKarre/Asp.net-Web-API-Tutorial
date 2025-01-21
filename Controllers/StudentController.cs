@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.JsonPatch;
 using System.Reflection;
 using CollegeApp.Loggings;
 using ILogger = CollegeApp.Loggings.ILogger;
+using CollegeApp.Data;
+using Microsoft.EntityFrameworkCore;
+using AutoMapper;
 
 namespace CollegeApp.Controllers
 {
@@ -15,6 +18,12 @@ namespace CollegeApp.Controllers
     [Route("api/[Controller]")]
     public class StudentController : ControllerBase
     {
+        #region DI
+        //Working with DB context instead of InMemory Repository
+        private readonly CollegeDBContext _dbContext;
+        //Loading AutoMapper
+        private readonly IMapper _mapper;
+
         private readonly ILogger _logger;
         //1. Strongly Coupled/ Tightly Coupled 
         //public StudentController()
@@ -32,10 +41,13 @@ namespace CollegeApp.Controllers
         //2. Loosely Coupled 
         // We Can send the object as a parameter so that every time we need to change the mechanism we only need to pass the object. 
         // In order to know the object we need to register/Configure the type of instance we want as a Dependency Injection in Programm.cs file
-        public StudentController(ILogger logger)
+        public StudentController(ILogger logger, CollegeDBContext dbContext, IMapper mapper)
         {
             _logger = logger;
+            _dbContext = dbContext;
+            _mapper = mapper;
         }
+        #endregion;
 
         [HttpGet]
         [Route("GetAll", Name = "GetAllStudents")]
@@ -57,14 +69,19 @@ namespace CollegeApp.Controllers
             //    });
             //}
             //Using Linq
-            var students = StudentRepository.Student.Select(m => new StudentDTO()
-            {
-                Id = m.Id,
-                Name = m.Name,
-                Email = m.Email,
-                Phone = m.Phone,
-                Sex = m.Sex,
-            }).ToList();
+            //Changing the InMemory repository with DBContext
+            //var students = StudentRepository.Student.Select(m => new StudentDTO()
+            //Converting the Manual Mapping to Auto Mapper
+            //var students = _dbContext.students.Select(m => new StudentDTO()
+            //{
+            //    Id = m.Id,
+            //    Name = m.Name,
+            //    Email = m.Email,
+            //    Phone = m.Phone,
+            //    Sex = m.Sex,
+            //}).ToList();
+            var students = _mapper.Map<List<StudentDTO>>(_dbContext.students.ToList());
+
             // OK - 200 - Success
             return Ok(students);
         }
@@ -80,20 +97,27 @@ namespace CollegeApp.Controllers
             if (id <= 0)
                 // BadRequest - 400 - Client Error
                 return BadRequest();
-            
-            var student = StudentRepository.Student.Where(i => i.Id == id).FirstOrDefault();
+
+            //Changing the InMemory repository with DBContext
+            //var student = StudentRepository.Student.Where(i => i.Id == id).FirstOrDefault();
+            var student = _dbContext.students.Where(i => i.Id == id).FirstOrDefault();
             if (student == null)
                 //NotFound - 404 - Data Not Found - Client Error
                 return NotFound($"The student with id {id} not found.");
 
-            var studentDTO = StudentRepository.Student.Where(i => i.Id == id).Select(m => new StudentDTO()
-            {
-                Id = m.Id,
-                Name = m.Name,
-                Email = m.Email,
-                Phone = m.Phone,
-                Sex = m.Sex,
-            });
+            //Changing the InMemory repository with DBContext
+            //var studentDTO = StudentRepository.Student.Where(i => i.Id == id).Select(m => new StudentDTO()
+            //Converting the Manual Mapping to Auto Mapper
+            //var studentDTO = _dbContext.students.Where(i => i.Id == id).Select(m => new StudentDTO()
+            //{
+            //    Id = m.Id,
+            //    Name = m.Name,
+            //    Email = m.Email,
+            //    Phone = m.Phone,
+            //    Sex = m.Sex,
+            //});
+            var studentDTO = _mapper.Map<List<StudentDTO>>(_dbContext.students.Where(i => i.Id == id));
+
             // OK - 200 - Success
             return Ok(studentDTO);
         }
@@ -110,19 +134,26 @@ namespace CollegeApp.Controllers
                 // BadRequest - 400 - Client Error
                 return BadRequest();
 
-            var student = StudentRepository.Student.Where(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            //Changing the InMemory repository with DBContext
+            //var student = StudentRepository.Student.Where(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            var student = _dbContext.students.Where(i => EF.Functions.Like(i.Name.ToLower(), name.ToLower())).FirstOrDefault();
             if (student == null)
                 //NotFound - 404 - Data Not Found - Client Error
                 return NotFound($"The student with name {name} not found.");
 
-            var studentDTO = StudentRepository.Student.Where(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase)).Select(m => new StudentDTO()
-            {
-                Id = m.Id,
-                Name = m.Name,
-                Email = m.Email,
-                Phone = m.Phone,
-                Sex = m.Sex,
-            });
+            //Changing the InMemory repository with DBContext
+            //var studentDTO = StudentRepository.Student.Where(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase)).Select(m => new StudentDTO()
+            //Converting the Manual Mapping to Auto Mapper
+            //var studentDTO = _dbContext.students.Where(i => EF.Functions.Like(i.Name.ToLower(), name.ToLower())).Select(m => new StudentDTO()
+            //{
+            //    Id = m.Id,
+            //    Name = m.Name,
+            //    Email = m.Email,
+            //    Phone = m.Phone,
+            //    Sex = m.Sex,
+            //});
+            var studentDTO = _mapper.Map<List<StudentDTO>>(_dbContext.students.Where(i => EF.Functions.Like(i.Name.ToLower(), name.ToLower())));
+
             // OK - 200 - Success
             return Ok(studentDTO);
         }
@@ -154,16 +185,30 @@ namespace CollegeApp.Controllers
             if (model.Sex != "Male" && model.Sex != "Female")
                 return BadRequest("You can only enter Male/Female as a value in sex parameter");
 
-            var newId = StudentRepository.Student.LastOrDefault()?.Id+1 ?? 1;
-            StudentModel studentmodel = new StudentModel
-            {
-                Id = newId,
-                Name = model.Name,
-                Email = model.Email,
-                Phone = model.Phone,
-                Sex = model.Sex,
-            };
-            StudentRepository.Student.Add(studentmodel);
+            //Changing the InMemory repository with DBContext
+            //var newId = StudentRepository.Student.LastOrDefault()?.Id+1 ?? 1;
+            //Also We dont need to generate ID now since it is autogenerated
+            //var newId = _dbContext.students.LastOrDefault()?.Id + 1 ?? 1;
+
+            //Changing the Model As well
+            //StudentModel studentmodel = new StudentModel
+            //Converting the Manual Mapping to Auto Mapper
+            //Students studentmodel = new Students
+            //{
+            //    //Id = newId,
+            //    Name = model.Name,
+            //    Email = model.Email,
+            //    Phone = model.Phone,
+            //    Sex = model.Sex,
+            //};
+            Students studentmodel = _mapper.Map<Students>(model);
+
+            //Changing the InMemory repository with DBContext
+            //StudentRepository.Student.Add(studentmodel);
+            _dbContext.students.Add(studentmodel);
+            //After adding we need to save the changes for that
+            _dbContext.SaveChanges();
+
             // Status code - 201
             //New URL - https://localhost:7086/api/Student/3
             //New Student Details Model
@@ -182,7 +227,9 @@ namespace CollegeApp.Controllers
             if (model == null || model.Id <= 0)
                 return BadRequest();
 
-            var existingstudent = StudentRepository.Student.Where(i => i.Id == model.Id).FirstOrDefault();
+            //Changing the InMemory repository with DBContext
+            //var existingstudent = StudentRepository.Student.Where(i => i.Id == model.Id).FirstOrDefault();
+            var existingstudent = _dbContext.students.Where(i => i.Id == model.Id).FirstOrDefault();
             if (existingstudent == null)
                 return NotFound();
 
@@ -190,6 +237,9 @@ namespace CollegeApp.Controllers
             existingstudent.Email = model.Email;
             existingstudent.Phone = model.Phone;
             existingstudent.Sex = model.Sex;
+
+            //while updating we need to save the chanegs
+            _dbContext.SaveChanges();
             return NoContent();
         }
 
@@ -204,7 +254,10 @@ namespace CollegeApp.Controllers
             if (patchDocument == null || id <= 0)
                 return BadRequest();
 
-            var existingstudent = StudentRepository.Student.Where(i => i.Id == id).FirstOrDefault();
+            //Changing the InMemory repository with DBContext
+            //var existingstudent = StudentRepository.Student.Where(i => i.Id == id).FirstOrDefault();
+            var existingstudent = _dbContext.students.Where(i => i.Id == id).FirstOrDefault();
+
             if (existingstudent == null)
                 return NotFound();
 
@@ -224,6 +277,9 @@ namespace CollegeApp.Controllers
             existingstudent.Phone = studentDTO.Phone;
             existingstudent.Sex = studentDTO.Sex;
 
+            //while updating we need to save the chanegs
+            _dbContext.SaveChanges();
+
             // 204 - No Content
             return NoContent();
         }
@@ -240,12 +296,21 @@ namespace CollegeApp.Controllers
                 // BadRequest - 400 - Client Error
                 return BadRequest();
 
-            var student = StudentRepository.Student.Where(i => i.Id == id).FirstOrDefault();
+            //Changing the InMemory repository with DBContext
+            //var student = StudentRepository.Student.Where(i => i.Id == id).FirstOrDefault();
+            var student = _dbContext.students.Where(i => i.Id == id).FirstOrDefault();
+
             if (student == null)
                 //NotFound - 404 - Data Not Found - Client Error
                 return NotFound($"The student with id {id} not found.");
 
-            StudentRepository.Student.Remove(student);
+            //Changing the InMemory repository with DBContext
+            //StudentRepository.Student.Remove(student);
+            _dbContext.students.Remove(student);
+
+            //While Removing we need to save the changes
+            _dbContext.SaveChanges();
+
             // OK - 200 - Success
             return Ok(true);
         }
