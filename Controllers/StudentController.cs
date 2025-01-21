@@ -6,6 +6,8 @@ using System.Numerics;
 using System.Xml.Linq;
 using Microsoft.AspNetCore.JsonPatch;
 using System.Reflection;
+using CollegeApp.Loggings;
+using ILogger = CollegeApp.Loggings.ILogger;
 
 namespace CollegeApp.Controllers
 {
@@ -13,6 +15,28 @@ namespace CollegeApp.Controllers
     [Route("api/[Controller]")]
     public class StudentController : ControllerBase
     {
+        private readonly ILogger _logger;
+        //1. Strongly Coupled/ Tightly Coupled 
+        //public StudentController()
+        //{
+        //    // Here We have 3 mechanism 
+        //    // A. Log to File
+        //    // B. Log to DB
+        //    // C. Log to Server memory
+        //    // We have used log to file mechanism however we have use to use anotehr mechanism then we have change the below method from log to file with log to SB etc.
+        //    // But if we are using this same logger in multiple class controllers then we have to make the changes in every class controller. This is where the Loosely Couple Method comes in handy.
+        //    //_logger = new LogToFile();
+        //    _logger = new LogToDB();
+        //}
+
+        //2. Loosely Coupled 
+        // We Can send the object as a parameter so that every time we need to change the mechanism we only need to pass the object. 
+        // In order to know the object we need to register/Configure the type of instance we want as a Dependency Injection in Programm.cs file
+        public StudentController(ILogger logger)
+        {
+            _logger = logger;
+        }
+
         [HttpGet]
         [Route("GetAll", Name = "GetAllStudents")]
         [ProducesResponseType(StatusCodes.Status200OK)]
