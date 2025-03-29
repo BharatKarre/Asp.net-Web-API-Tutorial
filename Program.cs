@@ -1,5 +1,7 @@
 using CollegeApp.Configurations;
 using CollegeApp.Data;
+using CollegeApp.Data.Config;
+using CollegeApp.Data.Repository;
 using CollegeApp.Loggings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -36,6 +38,7 @@ namespace CollegeApp
             builder.Services.AddScoped<ILogger, LogToFile>();
             builder.Services.AddSingleton<ILogger, LogToFile>();
             builder.Services.AddTransient<ILogger, LogToFile>();
+            builder.Services.AddTransient<IStudentRepository, StudentRepository>();
 
             //Connection string to connect SQL server database
             builder.Services.AddDbContext<CollegeDBContext>(Options =>

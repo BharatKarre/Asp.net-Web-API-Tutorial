@@ -28,7 +28,7 @@ namespace CollegeApp.Dtos
         //public string Confirmpassword { get; set; }
 
         //[CheckDateAttribute] - Custom validation Attribute created and applied.
-        [CheckDateAttribute]
-        public DateTime Admissiondate { get; set; }
+        //[CheckDateAttribute]
+        //public DateTime Admissiondate { get; set; }
     }
 }

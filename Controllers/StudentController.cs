@@ -1,16 +1,11 @@
 ﻿using CollegeApp.Models;
-using CollegeApp.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using CollegeApp.Dtos;
-using System.Numerics;
-using System.Xml.Linq;
 using Microsoft.AspNetCore.JsonPatch;
-using System.Reflection;
-using CollegeApp.Loggings;
 using ILogger = CollegeApp.Loggings.ILogger;
 using CollegeApp.Data;
-using Microsoft.EntityFrameworkCore;
 using AutoMapper;
+using CollegeApp.Data.Repository;
 
 namespace CollegeApp.Controllers
 {
@@ -20,7 +15,9 @@ namespace CollegeApp.Controllers
     {
         #region DI
         //Working with DB context instead of InMemory Repository
-        private readonly CollegeDBContext _dbContext;
+        //private readonly CollegeDBContext _dbContext;
+        //Instead of working with _dbContext we have created and repository interface and using it.
+        private readonly IStudentRepository _studentRepository;
         //Loading AutoMapper
         private readonly IMapper _mapper;
 
@@ -41,10 +38,10 @@ namespace CollegeApp.Controllers
         //2. Loosely Coupled 
         // We Can send the object as a parameter so that every time we need to change the mechanism we only need to pass the object. 
         // In order to know the object we need to register/Configure the type of instance we want as a Dependency Injection in Programm.cs file
-        public StudentController(ILogger logger, CollegeDBContext dbContext, IMapper mapper)
+        public StudentController(ILogger logger, IStudentRepository studentRepository, IMapper mapper)
         {
             _logger = logger;
-            _dbContext = dbContext;
+            _studentRepository = studentRepository;
             _mapper = mapper;
         }
         #endregion;
@@ -53,7 +50,7 @@ namespace CollegeApp.Controllers
         [Route("GetAll", Name = "GetAllStudents")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult<IEnumerable<StudentDTO>> StudentDetail()
+        public async Task<ActionResult<IEnumerable<StudentDTO>>> StudentDetailAsync()
         {
             ////Using ForEach loop
             //List<StudentDTO> students = new List<StudentDTO>();
@@ -80,7 +77,7 @@ namespace CollegeApp.Controllers
             //    Phone = m.Phone,
             //    Sex = m.Sex,
             //}).ToList();
-            var students = _mapper.Map<List<StudentDTO>>(_dbContext.students.ToList());
+            var students = _mapper.Map<List<StudentDTO>>( await _studentRepository.GetAllAsync());
 
             // OK - 200 - Success
             return Ok(students);
@@ -92,7 +89,7 @@ namespace CollegeApp.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult<IEnumerable<StudentDTO>> StudentdetailbyId(int id)
+        public async Task<ActionResult<IEnumerable<StudentDTO>>> StudentdetailbyIdAsync(int id)
         {
             if (id <= 0)
                 // BadRequest - 400 - Client Error
@@ -100,7 +97,7 @@ namespace CollegeApp.Controllers
 
             //Changing the InMemory repository with DBContext
             //var student = StudentRepository.Student.Where(i => i.Id == id).FirstOrDefault();
-            var student = _dbContext.students.Where(i => i.Id == id).FirstOrDefault();
+            var student = await _studentRepository.GetbyIdAsync(id, false);
             if (student == null)
                 //NotFound - 404 - Data Not Found - Client Error
                 return NotFound($"The student with id {id} not found.");
@@ -116,7 +113,7 @@ namespace CollegeApp.Controllers
             //    Phone = m.Phone,
             //    Sex = m.Sex,
             //});
-            var studentDTO = _mapper.Map<List<StudentDTO>>(_dbContext.students.Where(i => i.Id == id));
+            var studentDTO = _mapper.Map<StudentDTO>(student);
 
             // OK - 200 - Success
             return Ok(studentDTO);
@@ -128,7 +125,7 @@ namespace CollegeApp.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult<StudentDTO> StudentdetailbyName(string name)
+        public async Task<ActionResult<StudentDTO>> StudentdetailbyName(string name)
         {
             if (string.IsNullOrEmpty(name))
                 // BadRequest - 400 - Client Error
@@ -136,7 +133,7 @@ namespace CollegeApp.Controllers
 
             //Changing the InMemory repository with DBContext
             //var student = StudentRepository.Student.Where(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-            var student = _dbContext.students.Where(i => EF.Functions.Like(i.Name.ToLower(), name.ToLower())).FirstOrDefault();
+            var student = await _studentRepository.GetbyNameAsync(name);
             if (student == null)
                 //NotFound - 404 - Data Not Found - Client Error
                 return NotFound($"The student with name {name} not found.");
@@ -152,7 +149,7 @@ namespace CollegeApp.Controllers
             //    Phone = m.Phone,
             //    Sex = m.Sex,
             //});
-            var studentDTO = _mapper.Map<List<StudentDTO>>(_dbContext.students.Where(i => EF.Functions.Like(i.Name.ToLower(), name.ToLower())));
+            var studentDTO = _mapper.Map<StudentDTO>(student);
 
             // OK - 200 - Success
             return Ok(studentDTO);
@@ -163,7 +160,7 @@ namespace CollegeApp.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult<StudentModel> createStudent([FromBody] StudentDTO model)
+        public async Task<ActionResult<StudentModel>> createStudent([FromBody] StudentDTO model)
         {
             //ApiControlle at line 10
             //This Method is Used to validate if the Properties of the model has validity then it will invoke incase ApiController is commented.
@@ -176,11 +173,11 @@ namespace CollegeApp.Controllers
 
             //1. Directly adding error message to modelstate
             //2. Create a custion validation class and apply the attribute to the model property in model class.
-            if (model.Admissiondate < DateTime.Now)
-            {
-                ModelState.AddModelError("Admissiondate Error", "Admission date must be greater than or equal to current date");
-                return BadRequest(ModelState);
-            }
+            //if (model.Admissiondate < DateTime.Now)
+            //{
+            //    ModelState.AddModelError("Admissiondate Error", "Admission date must be greater than or equal to current date");
+            //    return BadRequest(ModelState);
+            //}
 
             if (model.Sex != "Male" && model.Sex != "Female")
                 return BadRequest("You can only enter Male/Female as a value in sex parameter");
@@ -205,14 +202,12 @@ namespace CollegeApp.Controllers
 
             //Changing the InMemory repository with DBContext
             //StudentRepository.Student.Add(studentmodel);
-            _dbContext.students.Add(studentmodel);
-            //After adding we need to save the changes for that
-            _dbContext.SaveChanges();
-
+            int id = await _studentRepository.CreateStudentAsync(studentmodel);
+            model.Id = id;
             // Status code - 201
             //New URL - https://localhost:7086/api/Student/3
             //New Student Details Model
-            return CreatedAtRoute("GetStudentById", new { id = studentmodel.Id }, studentmodel);
+            return CreatedAtRoute("GetStudentById", new { id = model.Id }, studentmodel);
             //return Ok(studentmodel);
         }
 
@@ -222,16 +217,20 @@ namespace CollegeApp.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult updatestudent([FromBody] StudentDTO model)
+        public async Task<ActionResult> updatestudent([FromBody] StudentDTO model)
         {
             if (model == null || model.Id <= 0)
                 return BadRequest();
 
             //Changing the InMemory repository with DBContext
             //var existingstudent = StudentRepository.Student.Where(i => i.Id == model.Id).FirstOrDefault();
-            var existingstudent = _dbContext.students.Where(i => i.Id == model.Id).FirstOrDefault();
+            var existingstudent = await _studentRepository.GetbyIdAsync(model.Id, true);
             if (existingstudent == null)
                 return NotFound();
+
+            //var newRecord = _mapper.Map<Students>(model);
+
+
 
             existingstudent.Name = model.Name;
             existingstudent.Email = model.Email;
@@ -239,7 +238,7 @@ namespace CollegeApp.Controllers
             existingstudent.Sex = model.Sex;
 
             //while updating we need to save the chanegs
-            _dbContext.SaveChanges();
+            await _studentRepository.UpdateStudentAsync(existingstudent);
             return NoContent();
         }
 
@@ -249,14 +248,14 @@ namespace CollegeApp.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult updatestudentPartial(int id, [FromBody] JsonPatchDocument<StudentDTO> patchDocument)
+        public async Task<ActionResult> updatestudentPartialAsync(int id, [FromBody] JsonPatchDocument<StudentDTO> patchDocument)
         {
             if (patchDocument == null || id <= 0)
                 return BadRequest();
 
             //Changing the InMemory repository with DBContext
             //var existingstudent = StudentRepository.Student.Where(i => i.Id == id).FirstOrDefault();
-            var existingstudent = _dbContext.students.Where(i => i.Id == id).FirstOrDefault();
+            var existingstudent = await _studentRepository.GetbyIdAsync(id, true);
 
             if (existingstudent == null)
                 return NotFound();
@@ -278,7 +277,7 @@ namespace CollegeApp.Controllers
             existingstudent.Sex = studentDTO.Sex;
 
             //while updating we need to save the chanegs
-            _dbContext.SaveChanges();
+            await _studentRepository.UpdateStudentAsync(existingstudent);
 
             // 204 - No Content
             return NoContent();
@@ -290,7 +289,7 @@ namespace CollegeApp.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         //[Route("{id:int}", Name = "DeleteStudentById")]
-        public ActionResult<bool> StudentDeletebyId(int id)
+        public async Task<ActionResult<bool>> StudentDeletebyId(int id)
         {
             if (id <= 0)
                 // BadRequest - 400 - Client Error
@@ -298,7 +297,7 @@ namespace CollegeApp.Controllers
 
             //Changing the InMemory repository with DBContext
             //var student = StudentRepository.Student.Where(i => i.Id == id).FirstOrDefault();
-            var student = _dbContext.students.Where(i => i.Id == id).FirstOrDefault();
+            var student = await _studentRepository.GetbyIdAsync(id, false);
 
             if (student == null)
                 //NotFound - 404 - Data Not Found - Client Error
@@ -306,10 +305,9 @@ namespace CollegeApp.Controllers
 
             //Changing the InMemory repository with DBContext
             //StudentRepository.Student.Remove(student);
-            _dbContext.students.Remove(student);
+            await _studentRepository.DeleteStudentAsync(id);
 
             //While Removing we need to save the changes
-            _dbContext.SaveChanges();
 
             // OK - 200 - Success
             return Ok(true);

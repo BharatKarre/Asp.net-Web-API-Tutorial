@@ -8,6 +8,7 @@ namespace CollegeApp.Configurations
     {
         public AutoMapperConfig()
         {
+            //Simple Mapping 
             //CreateMap<Students, StudentDTO>();
             //CreateMap<StudentDTO, Students>();
 
